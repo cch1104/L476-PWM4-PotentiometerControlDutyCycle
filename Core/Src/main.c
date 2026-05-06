@@ -21,7 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "lcd.h"
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,7 +60,12 @@ static void MX_TIM2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+void DutyCycle(float Duty, int Channel){
+	uint16_t AutoReload, SetDutyCycle;
+	AutoReload = __HAL_TIM_GET_AUTORELOAD(&htim2); //read ARR
+	SetDutyCycle=AutoReload * Duty/100.0;
+	__HAL_TIM_SET_COMPARE(&htim2, Channel, SetDutyCycle); //set CCR
+}
 /* USER CODE END 0 */
 
 /**
@@ -94,13 +100,58 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-
+  lcd_Init();
+  lcd_Clear();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  float mv; // store the converted data in millvolts
+  char buff[16]; //string buffer
+  float temperature;
+  uint32_t adcResult;
+  float duty;
+  HAL_ADC_Start(&hadc1);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   while (1)
   {
+	  HAL_ADC_PollForConversion(&hadc1, 100);
+	  adcResult=HAL_ADC_GetValue(&hadc1);
+
+	  mv=((float)adcResult)*3300.0/4095.0;
+	  temperature=(mv-500.0)/10;
+
+	  //display value on LCD
+	  lcd_Goto(0,0);
+	  lcd_Puts("TMP:");
+//	  int mv_int = (int)(mv* 100);
+//	  sprintf(buff, "%d.%02d", mv_int/100, mv_int%100);
+	  sprintf(buff, "%5.2f C", temperature);
+	  lcd_Puts(buff);
+
+	  int temperature_int=(int)(temperature);
+	  if(temperature_int < 25){
+	      duty = 10;
+	  }
+	  else if(temperature_int >= 25 && temperature_int < 45){
+	      duty = 50;
+	  }
+	  else{
+	      duty = 100;
+	  }
+
+	  lcd_Goto(0,1);
+	  lcd_Puts("duty:");
+
+//	  duty=100.0 * adcResult/4095.0;
+
+	  int d_int = (int)duty;
+	  int d_dec = (int)((duty - d_int) * 100);
+	  sprintf(buff, "%d.%02d", d_int, d_dec);
+	  lcd_Puts(buff);
+	  HAL_Delay(2000);
+
+	  DutyCycle(duty, TIM_CHANNEL_1);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -191,7 +242,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.DMAContinuousRequests = DISABLE;
-  hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
   hadc1.Init.OversamplingMode = DISABLE;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
@@ -210,7 +261,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_3;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_12CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
@@ -290,6 +341,7 @@ static void MX_TIM2_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
   /* USER CODE END MX_GPIO_Init_1 */
@@ -297,6 +349,19 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9
+                          |GPIO_PIN_10|GPIO_PIN_11, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PA6 PA7 PA8 PA9
+                           PA10 PA11 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9
+                          |GPIO_PIN_10|GPIO_PIN_11;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
