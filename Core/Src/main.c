@@ -126,7 +126,7 @@ int main(void)
 	  lcd_Puts("TMP:");
 //	  int mv_int = (int)(mv* 100);
 //	  sprintf(buff, "%d.%02d", mv_int/100, mv_int%100);
-	  sprintf(buff, "%5.2f C", temperature);
+	  sprintf(buff, "%6.2f %cC", temperature, 0xDF);
 	  lcd_Puts(buff);
 
 	  int temperature_int=(int)(temperature);
