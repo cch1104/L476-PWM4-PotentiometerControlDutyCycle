@@ -23,6 +23,8 @@
 /* USER CODE BEGIN Includes */
 #include "lcd.h"
 #include "stdio.h"
+#include "string.h"
+#include "stdlib.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -111,51 +113,64 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   float mv; // store the converted data in millvolts
-  char buff[16]; //string buffer
+  char buff[32]; //string buffer
   float temperature;
   uint32_t adcResult;
   float duty;
   HAL_ADC_Start(&hadc1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  char Text2Display[50];
   while (1)
   {
 	  HAL_ADC_PollForConversion(&hadc1, 100);
 	  adcResult=HAL_ADC_GetValue(&hadc1);
 
 	  mv=((float)adcResult)*3300.0/4095.0;
-	  temperature=(mv-500.0)/10;
+	  temperature=(mv-500.0)/10.0;
 
-	  //display value on LCD
+	  //display temp value on LCD
 	  lcd_Goto(0,0);
 	  lcd_Puts("TMP:");
 //	  int mv_int = (int)(mv* 100);
 //	  sprintf(buff, "%d.%02d", mv_int/100, mv_int%100);
-	  sprintf(buff, "%6.2f %cC", temperature, 0xDF);
+	  sprintf(buff, "%6.2f %cC ", temperature, 0xDF);
 	  lcd_Puts(buff);
 
-	  int temperature_int=(int)(temperature);
-	  if(temperature_int < 25){
+
+	  //display temp to Laptop by UART
+
+	  snprintf(buff, sizeof(buff), "%.2f degC", temperature);
+	  snprintf(Text2Display, sizeof(Text2Display), "\n\r%s  ", buff);  //move to the next line
+	  HAL_UART_Transmit(&huart2, (uint8_t*) Text2Display, strlen(Text2Display), HAL_MAX_DELAY);
+
+	  //update duty cycle
+	  int int_temp=(int)(temperature);
+	  if(int_temp < 25){
 	      duty = 10;
 	  }
-	  else if(temperature_int >= 25 && temperature_int < 45){
+	  else if(int_temp >= 25 && int_temp < 45){
 	      duty = 50;
 	  }
 	  else{
 	      duty = 100;
 	  }
+	  DutyCycle(duty, TIM_CHANNEL_1);
 
+	  //display duty value on LCD
 	  lcd_Goto(0,1);
 	  lcd_Puts("duty:");
-
 //	  duty=100.0 * adcResult/4095.0;
-
 	  int d_int = (int)duty;
 	  int d_dec = (int)((duty - d_int) * 100);
-	  sprintf(buff, "%d.%02d", d_int, d_dec);
+	  sprintf(buff, "%d.%02d", d_int,d_dec);
 	  lcd_Puts(buff);
-	  HAL_Delay(2000);
 
-	  DutyCycle(duty, TIM_CHANNEL_1);
+	  //display temp to Laptop by UART
+	  sprintf(buff, "duty : %d.%02d \n\r ", d_int, d_dec);
+	  sprintf(Text2Display, "%s",buff); //move to the next line
+	  HAL_UART_Transmit(&huart2, (uint8_t*) Text2Display, strlen(Text2Display), HAL_MAX_DELAY);
+
+	  HAL_Delay(2000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
