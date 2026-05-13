@@ -119,7 +119,8 @@ int main(void)
   float duty;
   HAL_ADC_Start(&hadc1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-  char Text2Display[50];
+  char Text2Display[60]="***System Start***\n\r";
+  HAL_UART_Transmit(&huart2, (uint8_t*) Text2Display, strlen(Text2Display), HAL_MAX_DELAY);
   while (1)
   {
 	  HAL_ADC_PollForConversion(&hadc1, 100);
